@@ -11,29 +11,46 @@ const settingSchema = new mongoose.Schema(
       default: 'OSIS SMA Negeri 1',
       trim: true,
     },
+    schoolName: {
+      type: String,
+      default: 'SMA Negeri 1',
+      trim: true,
+    },
     treasurerName: {
       type: String,
-      default: 'Siyam Ahmed',
+      default: 'Bendahara OSIS',
       trim: true,
     },
     initialBalance: {
       type: Number,
       default: 0,
-      min: [0, 'Saldo awal tidak boleh bernilai negatif'],
     },
     kasFee: {
       type: Number,
-      default: 20000,
-      min: [1000, 'Iuran kas minimal Rp 1.000'],
+      default: 2000,
     },
+    kasFeeEffectiveDate: {
+      type: String,
+      default: '2026-10-01',
+    },
+    feeHistory: [
+      {
+        fee: { type: Number, required: true },
+        effectiveDate: { type: String, required: true },
+      },
+    ],
+    holidays: [
+      {
+        date: { type: String, required: true },
+        reason: { type: String, default: '' },
+      },
+    ],
     activePeriod: {
       type: String,
       default: '2026-10',
-      match: [/^\d{4}-\d{2}$/, 'Format periode aktif harus YYYY-MM (contoh: 2026-10)'],
     },
     currencyStyle: {
       type: String,
-      enum: ['idr', 'mockup'],
       default: 'idr',
     },
     categoriesIn: {

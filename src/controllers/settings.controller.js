@@ -27,16 +27,34 @@ exports.getSettings = async (req, res, next) => {
  * Catatan: Perubahan kasFee hanya berlaku untuk transaksi baru di masa mendatang
  */
 exports.updateSettings = async (req, res, next) => {
-  try {
-    const { orgName, treasurerName, initialBalance, kasFee, activePeriod, currencyStyle } = req.body;
+    const {
+      orgName,
+      schoolName,
+      treasurerName,
+      initialBalance,
+      kasFee,
+      kasFeeEffectiveDate,
+      feeHistory,
+      holidays,
+      activePeriod,
+      currencyStyle,
+      categoriesIn,
+      categoriesOut,
+    } = req.body;
 
     const updates = {};
     if (orgName !== undefined) updates.orgName = orgName;
+    if (schoolName !== undefined) updates.schoolName = schoolName;
     if (treasurerName !== undefined) updates.treasurerName = treasurerName;
     if (initialBalance !== undefined) updates.initialBalance = Number(initialBalance);
     if (kasFee !== undefined) updates.kasFee = Number(kasFee);
+    if (kasFeeEffectiveDate !== undefined) updates.kasFeeEffectiveDate = kasFeeEffectiveDate;
+    if (feeHistory !== undefined && Array.isArray(feeHistory)) updates.feeHistory = feeHistory;
+    if (holidays !== undefined && Array.isArray(holidays)) updates.holidays = holidays;
     if (activePeriod !== undefined) updates.activePeriod = activePeriod;
     if (currencyStyle !== undefined) updates.currencyStyle = currencyStyle;
+    if (categoriesIn !== undefined && Array.isArray(categoriesIn)) updates.categoriesIn = categoriesIn;
+    if (categoriesOut !== undefined && Array.isArray(categoriesOut)) updates.categoriesOut = categoriesOut;
 
     const setting = await Setting.findByIdAndUpdate(
       'main_config',
