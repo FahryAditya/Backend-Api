@@ -27,6 +27,7 @@ exports.getSettings = async (req, res, next) => {
  * Catatan: Perubahan kasFee hanya berlaku untuk transaksi baru di masa mendatang
  */
 exports.updateSettings = async (req, res, next) => {
+  try {
     const {
       orgName,
       schoolName,
