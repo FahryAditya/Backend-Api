@@ -94,3 +94,29 @@ exports.addCategory = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * DELETE /api/settings/categories/:name
+ * Menghapus kategori kas
+ */
+exports.deleteCategory = async (req, res, next) => {
+  try {
+    const { name } = req.params;
+    const { type } = req.query; // 'in' or 'out'
+    const updateField = type === 'in' ? 'categoriesIn' : 'categoriesOut';
+
+    const setting = await Setting.findByIdAndUpdate(
+      'main_config',
+      { $pull: { [updateField]: name } },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Kategori "${name}" berhasil dihapus`,
+      data: setting,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

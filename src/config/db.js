@@ -20,7 +20,7 @@ const connectDB = async () => {
   const mongoURI =
     process.env.MONGODB_URI ||
     process.env.MONGO_URI ||
-    'mongodb://127.0.0.1:27017/kas_osis';
+    'mongodb+srv://Vercel-Admin-database-uangkas:S7EclAxTmqXy7QeK@database-uangkas.fi39tka.mongodb.net/kas_osis?retryWrites=true&w=majority';
 
   if (cached.conn) {
     return cached.conn;
@@ -28,8 +28,8 @@ const connectDB = async () => {
 
   if (!cached.promise) {
     const opts = {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 5000,
+      bufferCommands: true,
+      serverSelectionTimeoutMS: 8000,
     };
 
     cached.promise = mongoose.connect(mongoURI, opts).then((m) => {
@@ -43,7 +43,7 @@ const connectDB = async () => {
   } catch (error) {
     cached.promise = null;
     console.error(`[MongoDB Error] Gagal terhubung ke database: ${error.message}`);
-    console.warn('[MongoDB Warning] Pastikan MONGO_URI diatur dengan benar di dashboard Vercel / .env.');
+    throw error;
   }
 
   return cached.conn;
