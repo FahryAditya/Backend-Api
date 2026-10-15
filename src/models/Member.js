@@ -24,6 +24,11 @@ const memberSchema = new mongoose.Schema(
       default: 'Anggota OSIS',
       trim: true,
     },
+    className: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

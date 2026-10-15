@@ -20,7 +20,7 @@ exports.getMembers = async (req, res, next) => {
     const queryFilter = { isActive: true };
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), 'i');
-      queryFilter.$or = [{ name: regex }, { role: regex }];
+      queryFilter.$or = [{ name: regex }, { role: regex }, { className: regex }];
     }
 
     const members = await Member.find(queryFilter).sort({ createdAt: 1 }).lean();
@@ -103,7 +103,7 @@ exports.getMemberById = async (req, res, next) => {
  */
 exports.createMember = async (req, res, next) => {
   try {
-    const { name, role } = req.body;
+    const { name, role, className } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -128,6 +128,7 @@ exports.createMember = async (req, res, next) => {
     const member = await Member.create({
       name: name.trim(),
       role: role && role.trim() ? role.trim() : 'Anggota OSIS',
+      className: className && className.trim() ? className.trim() : '',
     });
 
     res.status(201).json({
@@ -141,13 +142,72 @@ exports.createMember = async (req, res, next) => {
 };
 
 /**
+ * POST /api/members/bulk
+ * Import banyak anggota sekaligus dari file Excel / Spreadsheet
+ * Body: { members: [ { name, className, role }, ... ] }
+ */
+exports.bulkCreateMembers = async (req, res, next) => {
+  try {
+    const { members } = req.body;
+
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Daftar anggota (array) wajib disediakan',
+      });
+    }
+
+    const inserted = [];
+    const skipped = [];
+
+    for (const item of members) {
+      if (!item.name || !item.name.trim()) continue;
+
+      const trimmedName = item.name.trim();
+      const trimmedClass = item.className ? item.className.trim() : '';
+      const trimmedRole = item.role && item.role.trim() ? item.role.trim() : 'Anggota OSIS';
+
+      const existing = await Member.findOne({
+        name: new RegExp(`^${trimmedName}$`, 'i'),
+        isActive: true,
+      });
+
+      if (existing) {
+        if (trimmedClass && !existing.className) {
+          existing.className = trimmedClass;
+          await existing.save();
+        }
+        skipped.push(trimmedName);
+      } else {
+        const created = await Member.create({
+          name: trimmedName,
+          className: trimmedClass,
+          role: trimmedRole,
+        });
+        inserted.push(created);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Berhasil mengimpor ${inserted.length} anggota baru${skipped.length > 0 ? ` (${skipped.length} dilewati)` : ''}`,
+      count: inserted.length,
+      skippedCount: skipped.length,
+      data: inserted,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * PUT /api/members/:id
- * Mengubah nama atau jabatan anggota
+ * Mengubah nama, kelas, atau jabatan anggota
  */
 exports.updateMember = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, role } = req.body;
+    const { name, role, className } = req.body;
 
     const member = await Member.findById(id);
     if (!member) {
@@ -159,6 +219,7 @@ exports.updateMember = async (req, res, next) => {
 
     if (name) member.name = name;
     if (role) member.role = role;
+    if (className !== undefined) member.className = className;
 
     await member.save();
 
