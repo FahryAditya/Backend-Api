@@ -55,9 +55,42 @@ exports.getMembers = async (req, res, next) => {
       message: `Daftar anggota untuk periode ${period}`,
       period,
       total: membersWithStatus.length,
+      count: membersWithStatus.length,
       paidCount: membersWithStatus.filter((m) => m.isPaid).length,
       unpaidCount: membersWithStatus.filter((m) => !m.isPaid).length,
       data: membersWithStatus,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/members/:id
+ * Mengambil detail anggota beserta riwayat transaksi kas
+ */
+exports.getMemberById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const member = await Member.findById(id).lean();
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: 'Anggota tidak ditemukan',
+      });
+    }
+
+    const kasHistory = await Transaction.find({ memberId: id, type: 'in' })
+      .sort({ date: -1, createdAt: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      message: 'Detail data anggota berhasil diambil',
+      data: {
+        ...member,
+        kasHistory,
+      },
     });
   } catch (error) {
     next(error);
