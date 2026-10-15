@@ -6,6 +6,7 @@ const transactionsController = require('../controllers/transactions.controller')
 router.get('/', transactionsController.getTransactions);
 router.post('/', transactionsController.createTransaction);
 router.put('/:id', transactionsController.updateTransaction);
+router.delete('/', transactionsController.deleteAllTransactions);
 router.delete('/:id', transactionsController.deleteTransaction);
 
 // Pembayaran kas anggota (single & bulk)

@@ -327,3 +327,21 @@ exports.deleteTransaction = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * DELETE /api/transactions
+ * Menghapus seluruh riwayat transaksi kas (reset riwayat transaksi)
+ */
+exports.deleteAllTransactions = async (req, res, next) => {
+  try {
+    const result = await Transaction.deleteMany({});
+    res.status(200).json({
+      success: true,
+      message: `Seluruh transaksi kas berhasil dihapus (${result.deletedCount} transaksi).`,
+      data: { deletedCount: result.deletedCount },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
