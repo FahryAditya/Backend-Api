@@ -5,11 +5,13 @@ const settingsRoutes = require('./settings.routes');
 const membersRoutes = require('./members.routes');
 const transactionsRoutes = require('./transactions.routes');
 const reportsRoutes = require('./reports.routes');
+const paymentRoutes = require('./payment.routes');
 
 router.use('/settings', settingsRoutes);
 router.use('/members', membersRoutes);
 router.use('/transactions', transactionsRoutes);
 router.use('/reports', reportsRoutes);
+router.use('/payment', paymentRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
