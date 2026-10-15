@@ -54,8 +54,15 @@ const transactionSchema = new mongoose.Schema(
     },
     period: {
       type: String,
-      match: [/^\d{4}-\d{2}$/, 'Format periode kas harus YYYY-MM (contoh: 2026-10)'],
       default: null,
+    },
+    allocatedWeeks: {
+      type: [String],
+      default: [],
+    },
+    weeksCount: {
+      type: Number,
+      default: 1,
     },
     note: {
       type: String,

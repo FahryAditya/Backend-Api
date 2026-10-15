@@ -73,10 +73,60 @@ exports.getTransactions = async (req, res, next) => {
  */
 exports.createTransaction = async (req, res, next) => {
   try {
-    const { type, title, category, amount, date, time, recorder, iconBrand, note } = req.body;
+    const {
+      type,
+      title,
+      category,
+      amount,
+      date,
+      time,
+      recorder,
+      iconBrand,
+      note,
+      memberId,
+      period,
+      allocatedWeeks,
+      weeksCount,
+    } = req.body;
 
     const setting = await Setting.findById('main_config');
     const defaultRecorder = setting ? setting.treasurerName : 'Bendahara OSIS';
+
+    // Cari memberId jika dikirim atau cari otomatis dari title jika format 'Kas OSIS - [Nama]'
+    let resolvedMemberId = memberId || null;
+    let resolvedStudentName = '';
+    if (title && title.includes('Kas OSIS -')) {
+      const match = title.match(/Kas OSIS - (.+?)(?:\s*\(\d+\s*Minggu\))?$/);
+      if (match && match[1]) {
+        resolvedStudentName = match[1].trim();
+        if (!resolvedMemberId) {
+          const found = await Member.findOne({ name: new RegExp(`^${resolvedStudentName}$`, 'i') });
+          if (found) resolvedMemberId = found._id;
+        }
+      }
+    }
+
+    const weeks = Array.isArray(allocatedWeeks) ? allocatedWeeks : (period ? [period] : []);
+
+    // PROTEKSI ANTI-DUPLIKASI: Cegah input ganda untuk siswa dan minggu yang sama
+    if (type === 'in' && resolvedMemberId && weeks.length > 0) {
+      const existingPayment = await Transaction.findOne({
+        type: 'in',
+        memberId: resolvedMemberId,
+        $or: [
+          { allocatedWeeks: { $in: weeks } },
+          { period: { $in: weeks } }
+        ]
+      });
+
+      if (existingPayment) {
+        return res.status(409).json({
+          success: false,
+          message: `Pembayaran ditolak: Siswa "${resolvedStudentName || 'terkait'}" sudah tercatat membayar kas untuk tanggal (${weeks.join(', ')}). Mencegah duplikasi data.`,
+          data: existingPayment,
+        });
+      }
+    }
 
     const transaction = await Transaction.create({
       type,
@@ -88,6 +138,10 @@ exports.createTransaction = async (req, res, next) => {
       recorder: recorder || defaultRecorder,
       iconBrand: iconBrand || 'general',
       note: note || '',
+      memberId: resolvedMemberId,
+      period: period || (allocatedWeeks && allocatedWeeks.length > 0 ? allocatedWeeks[0] : null),
+      allocatedWeeks: allocatedWeeks || [],
+      weeksCount: Number(weeksCount) || 1,
     });
 
     res.status(201).json({
