@@ -8,12 +8,12 @@ const settingSchema = new mongoose.Schema(
     },
     orgName: {
       type: String,
-      default: 'OSIS SMA Negeri 1',
+      default: 'OSIS SKARLAKES',
       trim: true,
     },
     schoolName: {
       type: String,
-      default: 'SMA Negeri 1',
+      default: 'SMK Airlangga & SMK Kesehatan Airlangga',
       trim: true,
     },
     treasurerName: {
