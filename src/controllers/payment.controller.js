@@ -104,10 +104,8 @@ exports.createOrder = async (req, res) => {
 
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
     if (serverKey && serverKey.trim().length > 0) {
-      // Panggil Midtrans Core API Charge QRIS
       try {
         const midtransPayload = {
-          payment_type: 'qris',
           transaction_details: {
             order_id: orderId,
             gross_amount: totalAmount,
@@ -124,10 +122,21 @@ exports.createOrder = async (req, res) => {
             first_name: member.name,
             notes: member.role || 'Anggota OSIS',
           },
-          qris: {
-            acquirer: 'gopay',
-          },
         };
+
+        if (paymentType === 'gopay') {
+          midtransPayload.payment_type = 'gopay';
+          midtransPayload.gopay = {
+            enable_callback: true,
+            callback_url: 'uangkas://payment/finish',
+          };
+        } else {
+          // Default: QRIS (Support DANA, GoPay, OVO, ShopeePay, M-Banking)
+          midtransPayload.payment_type = 'qris';
+          midtransPayload.qris = {
+            acquirer: 'gopay',
+          };
+        }
 
         const mtRes = await callMidtransApi('/v2/charge', 'POST', midtransPayload, serverKey);
         pgResponse = mtRes.data;
@@ -135,6 +144,10 @@ exports.createOrder = async (req, res) => {
         if (mtRes.data && mtRes.data.actions) {
           const qrAction = mtRes.data.actions.find(a => a.name === 'generate-qr-code');
           if (qrAction) qrCodeUrl = qrAction.url;
+
+          const deeplinkAction = mtRes.data.actions.find(a => a.name === 'deeplink-redirect');
+          if (deeplinkAction) deeplinkUrl = deeplinkAction.url;
+
           if (mtRes.data.qr_string) qrString = mtRes.data.qr_string;
         }
       } catch (err) {
@@ -142,14 +155,16 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    // Jika Midtrans belum dikonfigurasi / mode testing, generate QR string simulasi
-    if (!qrString) {
+    // Jika Midtrans QR String belum didapat (atau fallback), buat format standar
+    if (!qrString && paymentType !== 'gopay') {
       qrString = `00020101021226600016ID.CO.QRIS.WWW01189360099900000000000215${orderId}51450015ID.OR.OSIS.SKAR0215${member._id}520458125303360540${totalAmount}5802ID5913OSIS SKARLAKES6009BALIKPAPAN6304ABCD`;
     }
-    if (!qrCodeUrl) {
+    if (!qrCodeUrl && qrString) {
       qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(qrString)}`;
     }
-    deeplinkUrl = `https://link.dana.id/m/qris?data=${encodeURIComponent(qrString)}`;
+    if (!deeplinkUrl && qrString) {
+      deeplinkUrl = `https://link.dana.id/m/qris?data=${encodeURIComponent(qrString)}`;
+    }
 
     // Simpan ke database
     const newOrder = await PaymentOrder.create({
