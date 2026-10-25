@@ -6,12 +6,14 @@ const membersRoutes = require('./members.routes');
 const transactionsRoutes = require('./transactions.routes');
 const reportsRoutes = require('./reports.routes');
 const paymentRoutes = require('./payment.routes');
+const agendaRoutes = require('./agenda.routes');
 
 router.use('/settings', settingsRoutes);
 router.use('/members', membersRoutes);
 router.use('/transactions', transactionsRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/payment', paymentRoutes);
+router.use('/agendas', agendaRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
