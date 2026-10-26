@@ -5,10 +5,10 @@ const Member = require('../models/Member');
 const Transaction = require('../models/Transaction');
 
 // Helper untuk HTTP request ke Midtrans
-function callMidtransApi(endpoint, method, body = null, serverKey = '') {
+function callMidtransApi(endpoint, method, body = null, serverKey = '', customHost = null) {
   return new Promise((resolve, reject) => {
     const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
-    const host = isProduction ? 'api.midtrans.com' : 'api.sandbox.midtrans.com';
+    const host = customHost || (isProduction ? 'api.midtrans.com' : 'api.sandbox.midtrans.com');
     const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
     const headers = {
@@ -150,8 +150,28 @@ exports.createOrder = async (req, res) => {
 
           if (mtRes.data.qr_string) qrString = mtRes.data.qr_string;
         }
+
+        // Jika Core API belum aktif (misal status 402 channel not activated), gunakan Midtrans Snap resmi
+        if (!qrCodeUrl && !qrString) {
+          const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+          const snapHost = isProduction ? 'app.midtrans.com' : 'app.sandbox.midtrans.com';
+          const snapPayload = {
+            transaction_details: {
+              order_id: orderId,
+              gross_amount: totalAmount,
+            },
+            item_details: midtransPayload.item_details,
+            customer_details: midtransPayload.customer_details,
+          };
+          const snapRes = await callMidtransApi('/snap/v1/transactions', 'POST', snapPayload, serverKey, snapHost);
+          if (snapRes.data && snapRes.data.redirect_url) {
+            deeplinkUrl = snapRes.data.redirect_url;
+            qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(snapRes.data.redirect_url)}`;
+            pgResponse = snapRes.data;
+          }
+        }
       } catch (err) {
-        console.warn('Gagal menghubungi Midtrans API, beralih ke simulasi visual:', err.message);
+        console.warn('Gagal menghubungi Midtrans API:', err.message);
       }
     }
 
