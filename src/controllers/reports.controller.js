@@ -77,7 +77,30 @@ exports.getReportSummary = async (req, res, next) => {
     ]);
 
     // Format segmen spesifik Donut Chart (Kas Anggota, Konsumsi, Administrasi, Perlengkapan, Surplus)
-    const surplus = totalIncome - totalExpense;
+    // 1b. Agregasi Saldo Kas Tunai vs Kas Digital
+    const walletAgg = await Transaction.aggregate([
+      {
+        $group: {
+          _id: { walletType: { $ifNull: ['$walletType', 'cash'] }, type: '$type' },
+          total: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    let cashIn = 0, cashOut = 0, digitalIn = 0, digitalOut = 0;
+    walletAgg.forEach((w) => {
+      const wType = w._id.walletType;
+      if (wType === 'digital') {
+        if (w._id.type === 'in') digitalIn = w.total;
+        if (w._id.type === 'out') digitalOut = w.total;
+      } else {
+        if (w._id.type === 'in') cashIn = w.total;
+        if (w._id.type === 'out') cashOut = w.total;
+      }
+    });
+
+    const cashBalance = initialBalance + cashIn - cashOut;
+    const digitalBalance = digitalIn - digitalOut;
 
     res.status(200).json({
       success: true,
@@ -88,6 +111,8 @@ exports.getReportSummary = async (req, res, next) => {
         totalIncome,
         totalExpense,
         finalBalance,
+        cashBalance,
+        digitalBalance,
         monthIncome,
         monthExpense,
         surplus: surplus > 0 ? surplus : 0,

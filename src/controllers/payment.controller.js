@@ -363,12 +363,23 @@ exports.simulatePayment = async (req, res) => {
   }
 };
 
-// Helper internal: Buat Transaksi Kas Resmi saat Order Lunas
+// Helper internal: Buat Transaksi Kas Resmi saat Order Lunas (Strictly Idempotent)
 async function createKasTransactionFromOrder(order) {
-  // Cek apakah transaksi sudah pernah dibuat untuk order ini
+  // 1. Cek apakah transaksi sudah pernah terikat pada order ini
   if (order.transactionId) {
     const existing = await Transaction.findById(order.transactionId);
     if (existing) return existing;
+  }
+
+  // 2. Proteksi Idempotency: Cek apakah transaksi dengan orderId ini sudah ada di database
+  const existingByOrder = await Transaction.findOne({
+    memberId: order.memberId,
+    note: { $regex: order.orderId },
+  });
+  if (existingByOrder) {
+    order.transactionId = existingByOrder._id.toString();
+    await order.save();
+    return existingByOrder;
   }
 
   const now = new Date();
@@ -392,6 +403,7 @@ async function createKasTransactionFromOrder(order) {
     period: order.period,
     allocatedWeeks: order.allocatedWeeks,
     weeksCount: order.allocatedWeeks.length,
+    walletType: 'digital',
     note: `Pembayaran otomatis via QRIS / DANA (Order: ${order.orderId}, Periode: ${weeksDesc})`,
     isVoid: false,
   });

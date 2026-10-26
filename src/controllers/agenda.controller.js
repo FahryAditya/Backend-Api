@@ -78,7 +78,7 @@ exports.createAgenda = async (req, res, next) => {
         message: 'Nama agenda/kegiatan wajib diisi',
       });
     }
-
+    
     if (!feeAmount || Number(feeAmount) <= 0) {
       return res.status(400).json({
         success: false,
@@ -143,7 +143,7 @@ exports.createAgenda = async (req, res, next) => {
 exports.payParticipant = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { memberId, amount, recorder = 'Bendahara OSIS', note } = req.body;
+    const { memberId, amount, recorder = 'Bendahara OSIS', note, walletType = 'cash' } = req.body;
 
     const agenda = await Agenda.findById(id);
     if (!agenda) {
@@ -161,14 +161,18 @@ exports.payParticipant = async (req, res, next) => {
       });
     }
 
-    if (participant.isPaid) {
+    const currentPaid = participant.paidAmount || 0;
+    if (currentPaid >= agenda.feeAmount) {
       return res.status(400).json({
         success: false,
         message: 'Peserta ini sudah berstatus lunas',
       });
     }
 
-    const payAmount = Number(amount) || agenda.feeAmount;
+    const payAmount = Number(amount) || (agenda.feeAmount - currentPaid);
+    const newTotalPaid = currentPaid + payAmount;
+    const isFullLunas = newTotalPaid >= agenda.feeAmount;
+
     const today = getTodayDate();
     const time = getCurrentTime();
     let transactionId = null;
@@ -177,22 +181,26 @@ exports.payParticipant = async (req, res, next) => {
     if (agenda.mergeWithMainKas) {
       const createdTx = await Transaction.create({
         type: 'in',
-        title: `Iuran ${agenda.title} - ${participant.memberName}`,
+        title: `Iuran ${agenda.title} - ${participant.memberName}${isFullLunas ? ' (Pelunasan)' : ' (Cicilan)'}`,
         category: 'Iuran Agenda',
         amount: payAmount,
         date: today,
         time,
         recorder,
         iconBrand: 'general',
-        note: note || `Pembayaran iuran ${agenda.title}`,
+        walletType: walletType === 'digital' ? 'digital' : 'cash',
+        note: note || `Pembayaran iuran ${agenda.title} (${payAmount >= agenda.feeAmount ? 'Lunas' : `Cicilan Rp${payAmount}`})`,
       });
       transactionId = String(createdTx._id);
     }
 
-    participant.isPaid = true;
-    participant.paidAmount = payAmount;
+    participant.isPaid = isFullLunas;
+    participant.paidAmount = newTotalPaid;
     participant.paidAt = `${today} ${time}`;
     participant.transactionId = transactionId;
+    participant.walletType = walletType === 'digital' ? 'digital' : 'cash';
+    participant.recorder = recorder;
+    participant.note = note || '';
 
     await agenda.save();
 
@@ -267,7 +275,7 @@ exports.cancelPayment = async (req, res, next) => {
 exports.bulkPayClass = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { grade, recorder = 'Bendahara OSIS' } = req.body;
+    const { grade, recorder = 'Bendahara OSIS', walletType = 'cash' } = req.body;
 
     const agenda = await Agenda.findById(id);
     if (!agenda) {
@@ -295,6 +303,7 @@ exports.bulkPayClass = async (req, res, next) => {
             time,
             recorder,
             iconBrand: 'general',
+            walletType: walletType === 'digital' ? 'digital' : 'cash',
             note: `Pembayaran massal iuran ${agenda.title} Kelas ${grade}`,
           });
           transactionId = String(createdTx._id);
@@ -304,6 +313,9 @@ exports.bulkPayClass = async (req, res, next) => {
         p.paidAmount = agenda.feeAmount;
         p.paidAt = `${today} ${time}`;
         p.transactionId = transactionId;
+        p.walletType = walletType === 'digital' ? 'digital' : 'cash';
+        p.recorder = recorder;
+        p.note = `Pembayaran massal Kelas ${grade}`;
         paidCount++;
       }
     }

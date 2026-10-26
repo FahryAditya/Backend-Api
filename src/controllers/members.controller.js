@@ -20,7 +20,12 @@ exports.getMembers = async (req, res, next) => {
     const queryFilter = { isActive: true };
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), 'i');
-      queryFilter.$or = [{ name: regex }, { role: regex }, { className: regex }];
+      queryFilter.$or = [
+        { name: regex },
+        { nickname: regex },
+        { role: regex },
+        { className: regex }
+      ];
     }
 
     const members = await Member.find(queryFilter).sort({ createdAt: 1 }).lean();
@@ -103,7 +108,7 @@ exports.getMemberById = async (req, res, next) => {
  */
 exports.createMember = async (req, res, next) => {
   try {
-    const { name, role, className } = req.body;
+    const { name, nickname, role, className } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -112,21 +117,25 @@ exports.createMember = async (req, res, next) => {
       });
     }
 
-    // Cek duplikasi nama anggota aktif
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    const cleanNickname = nickname ? nickname.trim().replace(/\s+/g, ' ') : '';
+
+    // Cek duplikasi nama anggota aktif (toleransi spasi ganda dan case-insensitive)
     const existing = await Member.findOne({
-      name: new RegExp(`^${name.trim()}$`, 'i'),
+      name: new RegExp(`^${cleanName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i'),
       isActive: true,
     });
 
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `Anggota dengan nama "${name.trim()}" sudah ada di database.`,
+        message: `Anggota dengan nama "${cleanName}" sudah terdaftar di database.`,
       });
     }
 
     const member = await Member.create({
-      name: name.trim(),
+      name: cleanName,
+      nickname: cleanNickname,
       role: role && role.trim() ? role.trim() : 'Anggota OSIS',
       className: className && className.trim() ? className.trim() : '',
     });
@@ -163,24 +172,29 @@ exports.bulkCreateMembers = async (req, res, next) => {
     for (const item of members) {
       if (!item.name || !item.name.trim()) continue;
 
-      const trimmedName = item.name.trim();
+      const trimmedName = item.name.trim().replace(/\s+/g, ' ');
+      const trimmedNickname = item.nickname ? item.nickname.trim().replace(/\s+/g, ' ') : '';
       const trimmedClass = item.className ? item.className.trim() : '';
       const trimmedRole = item.role && item.role.trim() ? item.role.trim() : 'Anggota OSIS';
 
       const existing = await Member.findOne({
-        name: new RegExp(`^${trimmedName}$`, 'i'),
+        name: new RegExp(`^${trimmedName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i'),
         isActive: true,
       });
 
       if (existing) {
         if (trimmedClass && !existing.className) {
           existing.className = trimmedClass;
-          await existing.save();
         }
+        if (trimmedNickname && !existing.nickname) {
+          existing.nickname = trimmedNickname;
+        }
+        await existing.save();
         skipped.push(trimmedName);
       } else {
         const created = await Member.create({
           name: trimmedName,
+          nickname: trimmedNickname,
           className: trimmedClass,
           role: trimmedRole,
         });
@@ -202,12 +216,12 @@ exports.bulkCreateMembers = async (req, res, next) => {
 
 /**
  * PUT /api/members/:id
- * Mengubah nama, kelas, atau jabatan anggota
+ * Mengubah nama, nama panggilan, kelas, atau jabatan anggota
  */
 exports.updateMember = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, role, className } = req.body;
+    const { name, nickname, role, className } = req.body;
 
     const member = await Member.findById(id);
     if (!member) {
@@ -217,9 +231,10 @@ exports.updateMember = async (req, res, next) => {
       });
     }
 
-    if (name) member.name = name;
-    if (role) member.role = role;
-    if (className !== undefined) member.className = className;
+    if (name) member.name = name.trim().replace(/\s+/g, ' ');
+    if (nickname !== undefined) member.nickname = nickname.trim().replace(/\s+/g, ' ');
+    if (role) member.role = role.trim();
+    if (className !== undefined) member.className = className.trim();
 
     await member.save();
 

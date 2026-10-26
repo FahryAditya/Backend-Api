@@ -87,6 +87,8 @@ exports.createTransaction = async (req, res, next) => {
       period,
       allocatedWeeks,
       weeksCount,
+      walletType = 'cash',
+      receiptImageUrl = null,
     } = req.body;
 
     const setting = await Setting.findById('main_config');
@@ -142,6 +144,8 @@ exports.createTransaction = async (req, res, next) => {
       period: period || (allocatedWeeks && allocatedWeeks.length > 0 ? allocatedWeeks[0] : null),
       allocatedWeeks: allocatedWeeks || [],
       weeksCount: Number(weeksCount) || 1,
+      walletType: walletType === 'digital' ? 'digital' : 'cash',
+      receiptImageUrl: receiptImageUrl || null,
     });
 
     res.status(201).json({
@@ -321,7 +325,7 @@ exports.createBulkKasPayment = async (req, res, next) => {
 exports.updateTransaction = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, category, amount, date, time, recorder, note } = req.body;
+    const { title, category, amount, date, time, recorder, note, walletType, receiptImageUrl } = req.body;
 
     const updates = {};
     if (title !== undefined) updates.title = title;
@@ -331,6 +335,8 @@ exports.updateTransaction = async (req, res, next) => {
     if (time !== undefined) updates.time = time;
     if (recorder !== undefined) updates.recorder = recorder;
     if (note !== undefined) updates.note = note;
+    if (walletType !== undefined) updates.walletType = walletType;
+    if (receiptImageUrl !== undefined) updates.receiptImageUrl = receiptImageUrl;
 
     const transaction = await Transaction.findByIdAndUpdate(
       id,

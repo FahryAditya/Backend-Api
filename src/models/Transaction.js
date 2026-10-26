@@ -69,6 +69,15 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    walletType: {
+      type: String,
+      enum: ['cash', 'digital'],
+      default: 'cash',
+    },
+    receiptImageUrl: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

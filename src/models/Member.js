@@ -19,6 +19,11 @@ const memberSchema = new mongoose.Schema(
       required: [true, 'Nama anggota wajib diisi'],
       trim: true,
     },
+    nickname: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     role: {
       type: String,
       default: 'Anggota OSIS',

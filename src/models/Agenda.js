@@ -36,6 +36,19 @@ const agendaParticipantSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    walletType: {
+      type: String,
+      enum: ['cash', 'digital'],
+      default: 'cash',
+    },
+    recorder: {
+      type: String,
+      default: 'Bendahara',
+    },
+    note: {
+      type: String,
+      default: '',
+    },
   },
   { _id: false }
 );
